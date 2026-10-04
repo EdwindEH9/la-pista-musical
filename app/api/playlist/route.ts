@@ -44,22 +44,22 @@ function extractPlaylistId(input: string): string | null {
   } catch { return null; }
 }
 
-async function fetchAllTracks(token: string, playlistId: string) {
+async function fetchAllTracks(token: string, playlistId: string): Promise<Track[]> {
   const tracks: Track[] = [];
-  let url: string | null = `https://api.spotify.com/v1/playlists/${playlistId}/items?limit=100`;
+  let nextUrl: string | null = `https://api.spotify.com/v1/playlists/${playlistId}/items?limit=100`;
 
-  while (url) {
-    const res = await fetch(url, {
+  while (nextUrl) {
+    const response: Response = await fetch(nextUrl, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) {
-      const body = await res.text();
-      console.error("Spotify response:", res.status, body);
-      throw new Error(`Spotify API error: ${res.status}`);
+    if (!response.ok) {
+      const body = await response.text();
+      console.error("Spotify response:", response.status, body);
+      throw new Error(`Spotify API error: ${response.status}`);
     }
 
-    const data = await res.json();
+    const data: SpotifyPlaylistResponse = await response.json();
 
     for (const item of data.items) {
       const t = item?.item ?? item?.track;
@@ -67,14 +67,14 @@ async function fetchAllTracks(token: string, playlistId: string) {
       tracks.push({
         id: t.id,
         name: t.name ?? "Desconocido",
-        artist: t.artists?.map((a: any) => a.name).join(", ") ?? "Desconocido",
+        artist: t.artists?.map((a: SpotifyArtist) => a.name).join(", ") ?? "Desconocido",
         album: t.album?.name ?? "Desconocido",
         cover: t.album?.images?.[0]?.url ?? null,
         duration_ms: t.duration_ms ?? 0,
       });
     }
 
-    url = data.next ?? null;
+    nextUrl = data.next ?? null;
   }
 
   return tracks;
@@ -87,4 +87,30 @@ interface Track {
   album: string;
   cover: string | null;
   duration_ms: number;
+}
+
+interface SpotifyArtist {
+  name: string;
+}
+
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  type: string;
+  artists: SpotifyArtist[];
+  album: {
+    name: string;
+    images: { url: string }[];
+  };
+  duration_ms: number;
+}
+
+interface SpotifyPlaylistItem {
+  item?: SpotifyTrack;
+  track?: SpotifyTrack;
+}
+
+interface SpotifyPlaylistResponse {
+  items: SpotifyPlaylistItem[];
+  next: string | null;
 }
