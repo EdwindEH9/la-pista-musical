@@ -24,7 +24,6 @@ export function useAudioPlayer() {
       audioRef.current.pause();
       audioRef.current.src = "";
     }
-
     setPlayState("loading");
     setPlayCount(0);
 
@@ -54,14 +53,22 @@ export function useAudioPlayer() {
       setPlayState("playing");
       stopTimerRef.current = setTimeout(() => {
         audio.pause();
+        audio.currentTime = START_SECONDS;
         setPlayState("paused");
-        setPlayCount((prev) => prev + 1);
       }, duration * 1000);
     }).catch((err) => {
       console.error("Error reproduciendo:", err);
       setPlayState("paused");
     });
   }, [playCount, clearTimer]);
+
+  const advance = useCallback(() => {
+    if (playCount < DURATIONS.length - 1) {
+      setPlayCount((prev) => prev + 1);
+    } else {
+      setPlayCount(DURATIONS.length);
+    }
+  }, [playCount]);
 
   const playFull = useCallback(() => {
     const audio = audioRef.current;
@@ -100,6 +107,7 @@ export function useAudioPlayer() {
     durations: DURATIONS,
     loadTrack,
     play,
+    advance,
     playFull,
     stopAll,
     reset,

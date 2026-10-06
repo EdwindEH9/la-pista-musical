@@ -24,7 +24,7 @@ export default function GameClient() {
 
   const {
     playState, playCount, currentDuration, isExhausted,
-    loadTrack, play, playFull, stopAll, reset: resetAudio,
+    loadTrack, play, advance, playFull, stopAll, reset: resetAudio,
   } = useAudioPlayer();
 
   useEffect(() => {
@@ -94,10 +94,7 @@ export default function GameClient() {
             </div>
           ))}
         </div>
-        <button
-          onClick={reset}
-          className="mt-4 w-full max-w-sm bg-green-500 hover:bg-green-400 active:scale-95 text-black font-bold py-4 rounded-2xl transition-all text-lg"
-        >
+        <button onClick={reset} className="mt-4 w-full max-w-sm bg-green-500 active:scale-95 text-black font-bold py-4 rounded-2xl transition-all text-lg">
           Jugar de nuevo
         </button>
       </main>
@@ -109,7 +106,6 @@ export default function GameClient() {
     return (
       <main className="min-h-screen bg-black flex flex-col items-center justify-start gap-4 px-4 pt-12 pb-8 overflow-y-auto">
         <p className="text-zinc-500 text-xs uppercase tracking-widest">Ronda {round}</p>
-
         <div className="flex items-center gap-4 w-full max-w-sm">
           {currentTrack.cover && (
             <img src={currentTrack.cover} alt="cover" className="w-24 h-24 rounded-xl shadow-xl flex-shrink-0" />
@@ -130,19 +126,13 @@ export default function GameClient() {
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {players.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => awardPoints(p.id, playCount - 1)}
-                      className="bg-zinc-800 active:bg-green-500 active:text-black text-white font-bold py-3 px-3 rounded-xl transition-colors text-sm min-h-[48px]"
-                    >
+                    <button key={p.id} onClick={() => awardPoints(p.id, playCount - 1)}
+                      className="bg-zinc-800 active:bg-green-500 active:text-black text-white font-bold py-3 px-3 rounded-xl transition-colors text-sm min-h-[48px]">
                       {p.name}
                     </button>
                   ))}
                 </div>
-                <button
-                  onClick={noWinner}
-                  className="w-full text-zinc-500 active:text-zinc-300 text-xs py-2 transition-colors"
-                >
+                <button onClick={noWinner} className="w-full text-zinc-500 active:text-zinc-300 text-xs py-2 transition-colors">
                   Nadie adivino
                 </button>
               </>
@@ -169,10 +159,8 @@ export default function GameClient() {
           </div>
         </div>
 
-        <button
-          onClick={() => { stopAll(); nextSong(); }}
-          className="w-full max-w-sm bg-green-500 active:bg-green-400 active:scale-95 text-black font-bold py-4 rounded-2xl transition-all text-lg"
-        >
+        <button onClick={() => { stopAll(); nextSong(); }}
+          className="w-full max-w-sm bg-green-500 active:scale-95 text-black font-bold py-4 rounded-2xl transition-all text-lg">
           Siguiente →
         </button>
       </main>
@@ -205,7 +193,7 @@ export default function GameClient() {
           <div className="flex gap-2">
             {DURATIONS.map((d, i) => (
               <div key={d} className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-300 ${
-                i < playCount ? "bg-green-500 text-black scale-110"
+                i < playCount ? "bg-green-500 text-black"
                 : i === playCount ? "bg-zinc-700 text-white border border-zinc-500"
                 : "bg-zinc-900 text-zinc-600"
               }`}>
@@ -214,9 +202,7 @@ export default function GameClient() {
             ))}
           </div>
 
-          {audioError && (
-            <p className="text-yellow-400 text-sm text-center max-w-xs">{audioError}</p>
-          )}
+          {audioError && <p className="text-yellow-400 text-sm text-center max-w-xs">{audioError}</p>}
 
           <button
             onClick={play}
@@ -224,8 +210,7 @@ export default function GameClient() {
             className={`w-52 h-52 rounded-full font-black transition-all duration-150 flex flex-col items-center justify-center gap-2 shadow-2xl select-none
               ${playState === "playing"
                 ? "bg-green-400 shadow-green-500/50 scale-105 text-black"
-                : isExhausted
-                ? "bg-zinc-700 text-zinc-500"
+                : isExhausted ? "bg-zinc-700 text-zinc-500"
                 : "bg-green-500 active:scale-95 active:bg-green-400 shadow-green-900/50 text-black"
               }`}
           >
@@ -244,9 +229,17 @@ export default function GameClient() {
             {isExhausted && <span className="text-base font-bold">Agotado</span>}
           </button>
 
-          {isExhausted && (
-            <p className="text-zinc-500 text-sm">Usaste todas las pistas</p>
+          {!isExhausted && playState === "paused" && playCount < DURATIONS.length - 1 && (
+            <button
+              onClick={advance}
+              className="flex items-center gap-2 bg-zinc-800 active:bg-zinc-700 border border-zinc-600 text-white font-bold px-6 py-3 rounded-full transition-all"
+            >
+              <span>Escuchar mas</span>
+              <span className="text-green-400">{DURATIONS[playCount + 1]}s →</span>
+            </button>
           )}
+
+          {isExhausted && <p className="text-zinc-500 text-sm">Usaste todas las pistas</p>}
         </div>
 
         <button
@@ -267,25 +260,15 @@ export default function GameClient() {
           <h1 className="text-3xl font-black text-white">Jugadores</h1>
           <p className="text-zinc-400 text-sm">Hasta 8 jugadores</p>
         </div>
-
         <form onSubmit={handleAddPlayer} className="w-full max-w-sm flex gap-2">
-          <input
-            type="text"
-            value={newPlayerName}
-            onChange={(e) => setNewPlayerName(e.target.value)}
-            placeholder="Nombre del jugador..."
-            maxLength={20}
-            className="flex-1 bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors text-base"
-          />
-          <button
-            type="submit"
-            disabled={!newPlayerName.trim() || players.length >= 8}
-            className="bg-green-500 active:bg-green-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-black text-2xl w-14 rounded-xl transition-colors"
-          >
+          <input type="text" value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)}
+            placeholder="Nombre del jugador..." maxLength={20}
+            className="flex-1 bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-3 outline-none focus:border-green-500 transition-colors text-base" />
+          <button type="submit" disabled={!newPlayerName.trim() || players.length >= 8}
+            className="bg-green-500 active:bg-green-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-black text-2xl w-14 rounded-xl transition-colors">
             +
           </button>
         </form>
-
         {players.length > 0 && (
           <div className="w-full max-w-sm space-y-2">
             {players.map((p, i) => (
@@ -294,39 +277,23 @@ export default function GameClient() {
                   <span>{["🥇","🥈","🥉"][i] ?? "🎵"}</span>
                   <span className="text-white font-bold">{p.name}</span>
                 </div>
-                <button
-                  onClick={() => removePlayer(p.id)}
-                  className="text-zinc-500 active:text-red-400 transition-colors text-xl w-10 h-10 flex items-center justify-center"
-                >
-                  ✕
-                </button>
+                <button onClick={() => removePlayer(p.id)} className="text-zinc-500 active:text-red-400 transition-colors text-xl w-10 h-10 flex items-center justify-center">✕</button>
               </div>
             ))}
           </div>
         )}
-
         <div className="w-full max-w-sm space-y-3 mt-2">
-          <button
-            onClick={startGame}
-            disabled={players.length === 0}
-            className="w-full bg-green-500 active:bg-green-400 active:scale-95 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-4 rounded-2xl transition-all text-lg"
-          >
+          <button onClick={startGame} disabled={players.length === 0}
+            className="w-full bg-green-500 active:scale-95 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-4 rounded-2xl transition-all text-lg">
             {players.length === 0 ? "Agrega jugadores" : `Empezar (${players.length} jugadores)`}
           </button>
-
           {players.length === 0 && (
-            <button
-              onClick={startGame}
-              className="w-full text-zinc-500 active:text-zinc-300 text-sm py-3 transition-colors"
-            >
+            <button onClick={startGame} className="w-full text-zinc-500 active:text-zinc-300 text-sm py-3 transition-colors">
               Jugar sin puntaje →
             </button>
           )}
-
-          <button
-            onClick={() => useGameStore.getState().reset()}
-            className="w-full bg-zinc-900 active:bg-zinc-800 text-zinc-400 font-bold py-3 rounded-2xl transition-all border border-zinc-800 text-sm"
-          >
+          <button onClick={() => useGameStore.getState().reset()}
+            className="w-full bg-zinc-900 active:bg-zinc-800 text-zinc-400 font-bold py-3 rounded-2xl transition-all border border-zinc-800 text-sm">
             Volver
           </button>
         </div>
@@ -339,36 +306,23 @@ export default function GameClient() {
       <div className="text-center space-y-2">
         <div className="text-6xl">🎵</div>
         <h1 className="text-4xl font-black text-white">La Pista Musical</h1>
-        <p className="text-zinc-400">Pega el enlace de tu playlist</p>
+        <p className="text-zinc-400">Pega el enlace de tu playlist o album</p>
       </div>
-
       <div className="w-full max-w-md space-y-3">
-        <input
-          type="url"
-          inputMode="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+        <input type="url" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)}
           placeholder="Playlist o album de Spotify..."
-          className="w-full bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-4 outline-none focus:border-green-500 transition-colors text-base"
-        />
-        <button
-          onClick={handleLoad}
-          disabled={loading || !url.trim()}
-          className="w-full bg-green-500 active:bg-green-400 active:scale-95 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-4 rounded-xl transition-all text-lg"
-        >
-          {loading ? "Cargando..." : "Cargar Playlist"}
+          className="w-full bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-4 outline-none focus:border-green-500 transition-colors text-base" />
+        <button onClick={handleLoad} disabled={loading || !url.trim()}
+          className="w-full bg-green-500 active:scale-95 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-4 rounded-xl transition-all text-lg">
+          {loading ? "Cargando..." : "Cargar"}
         </button>
       </div>
-
       {error && (
-        <div className="w-full max-w-md bg-red-900/50 border border-red-500 text-red-200 px-5 py-3 rounded-xl text-sm">
-          {error}
-        </div>
+        <div className="w-full max-w-md bg-red-900/50 border border-red-500 text-red-200 px-5 py-3 rounded-xl text-sm">{error}</div>
       )}
-
       {info && (
         <div className="w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-2xl p-5 space-y-4">
-          <h2 className="text-white font-bold text-lg">Playlist cargada ✅</h2>
+          <h2 className="text-white font-bold text-lg">Cargado ✅</h2>
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="bg-zinc-800 rounded-xl p-4">
               <div className="text-3xl font-black text-white">{info.total}</div>
@@ -379,10 +333,8 @@ export default function GameClient() {
               <div className="text-zinc-400 text-xs mt-1">Jugables</div>
             </div>
           </div>
-          <button
-            onClick={goToGame}
-            className="w-full bg-green-500 active:bg-green-400 active:scale-95 text-black font-bold py-4 rounded-xl transition-all text-lg"
-          >
+          <button onClick={goToGame}
+            className="w-full bg-green-500 active:scale-95 text-black font-bold py-4 rounded-xl transition-all text-lg">
             Continuar →
           </button>
         </div>
