@@ -9,9 +9,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Falta la URL de la playlist" }, { status: 400 });
   }
 
-  const playlistId = extractPlaylistId(playlistUrl);
+  const playlistId = extractPlaylistId(playlistUrl.trim());
   if (!playlistId) {
-    return NextResponse.json({ error: "URL de playlist invalida" }, { status: 400 });
+    return NextResponse.json({ 
+      error: "URL de playlist invalida",
+      received: playlistUrl,
+    }, { status: 400 });
   }
 
   const token = await getValidAccessToken();
@@ -35,13 +38,27 @@ export async function GET(request: NextRequest) {
 
 function extractPlaylistId(input: string): string | null {
   try {
-    if (input.startsWith("spotify:playlist:")) return input.split(":")[2];
-    const url = new URL(input);
-    const parts = url.pathname.split("/");
-    const idx = parts.indexOf("playlist");
-    if (idx !== -1 && parts[idx + 1]) return parts[idx + 1].split("?")[0];
+    const cleaned = input.trim();
+
+    if (cleaned.startsWith("spotify:playlist:")) {
+      return cleaned.split(":")[2] ?? null;
+    }
+
+    const patterns = [
+      /playlist\/([a-zA-Z0-9]+)/,
+      /playlist:([a-zA-Z0-9]+)/,
+      /^([a-zA-Z0-9]{22})$/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = cleaned.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+
     return null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function fetchAllTracks(token: string, playlistId: string): Promise<Track[]> {
