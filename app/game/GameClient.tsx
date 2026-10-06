@@ -348,7 +348,7 @@ export default function GameClient() {
           inputMode="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://open.spotify.com/playlist/..."
+          placeholder="Playlist o album de Spotify..."
           className="w-full bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-4 outline-none focus:border-green-500 transition-colors text-base"
         />
         <button

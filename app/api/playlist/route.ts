@@ -6,14 +6,13 @@ export async function GET(request: NextRequest) {
   const playlistUrl = searchParams.get("url");
 
   if (!playlistUrl) {
-    return NextResponse.json({ error: "Falta la URL de la playlist" }, { status: 400 });
+    return NextResponse.json({ error: "Falta la URL" }, { status: 400 });
   }
 
-  const playlistId = extractPlaylistId(playlistUrl.trim());
-  if (!playlistId) {
-    return NextResponse.json({ 
-      error: "URL de playlist invalida",
-      received: playlistUrl,
+  const parsed = extractIdAndType(playlistUrl.trim());
+  if (!parsed) {
+    return NextResponse.json({
+      error: "URL invalida. Pega un link de playlist o album de Spotify.",
     }, { status: 400 });
   }
 
@@ -23,7 +22,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tracks = await fetchAllTracks(token, playlistId);
+    const tracks = parsed.type === "album"
+      ? await fetchAlbumTracks(token, parsed.id)
+      : await fetchPlaylistTracks(token, parsed.id);
+
     return NextResponse.json({
       total: tracks.length,
       valid: tracks.length,
@@ -31,29 +33,25 @@ export async function GET(request: NextRequest) {
       tracks,
     });
   } catch (err) {
-    console.error("Error al obtener playlist:", err);
-    return NextResponse.json({ error: "Error al obtener la playlist" }, { status: 500 });
+    console.error("Error al obtener tracks:", err);
+    return NextResponse.json({ error: "Error al obtener las canciones" }, { status: 500 });
   }
 }
 
-function extractPlaylistId(input: string): string | null {
+function extractIdAndType(input: string): { id: string; type: "playlist" | "album" } | null {
   try {
-    const cleaned = input.trim();
-
-    if (cleaned.startsWith("spotify:playlist:")) {
-      return cleaned.split(":")[2] ?? null;
+    if (input.startsWith("spotify:playlist:")) {
+      return { id: input.split(":")[2], type: "playlist" };
+    }
+    if (input.startsWith("spotify:album:")) {
+      return { id: input.split(":")[2], type: "album" };
     }
 
-    const patterns = [
-      /playlist\/([a-zA-Z0-9]+)/,
-      /playlist:([a-zA-Z0-9]+)/,
-      /^([a-zA-Z0-9]{22})$/,
-    ];
+    const playlistMatch = input.match(/playlist\/([a-zA-Z0-9]+)/);
+    if (playlistMatch?.[1]) return { id: playlistMatch[1], type: "playlist" };
 
-    for (const pattern of patterns) {
-      const match = cleaned.match(pattern);
-      if (match?.[1]) return match[1];
-    }
+    const albumMatch = input.match(/album\/([a-zA-Z0-9]+)/);
+    if (albumMatch?.[1]) return { id: albumMatch[1], type: "album" };
 
     return null;
   } catch {
@@ -61,7 +59,7 @@ function extractPlaylistId(input: string): string | null {
   }
 }
 
-async function fetchAllTracks(token: string, playlistId: string): Promise<Track[]> {
+async function fetchPlaylistTracks(token: string, playlistId: string): Promise<Track[]> {
   const tracks: Track[] = [];
   let nextUrl: string | null = `https://api.spotify.com/v1/playlists/${playlistId}/items?limit=100`;
 
@@ -97,6 +95,44 @@ async function fetchAllTracks(token: string, playlistId: string): Promise<Track[
   return tracks;
 }
 
+async function fetchAlbumTracks(token: string, albumId: string): Promise<Track[]> {
+  const albumRes: Response = await fetch(
+    `https://api.spotify.com/v1/albums/${albumId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (!albumRes.ok) throw new Error(`Spotify API error: ${albumRes.status}`);
+  const album: SpotifyAlbum = await albumRes.json();
+
+  const tracks: Track[] = [];
+  let nextUrl: string | null = `https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`;
+
+  while (nextUrl) {
+    const response: Response = await fetch(nextUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) throw new Error(`Spotify API error: ${response.status}`);
+    const data: SpotifyAlbumTracksResponse = await response.json();
+
+    for (const t of data.items) {
+      if (!t?.id) continue;
+      tracks.push({
+        id: t.id,
+        name: t.name ?? "Desconocido",
+        artist: t.artists?.map((a: SpotifyArtist) => a.name).join(", ") ?? "Desconocido",
+        album: album.name ?? "Desconocido",
+        cover: album.images?.[0]?.url ?? null,
+        duration_ms: t.duration_ms ?? 0,
+      });
+    }
+
+    nextUrl = data.next ?? null;
+  }
+
+  return tracks;
+}
+
 interface Track {
   id: string;
   name: string;
@@ -106,19 +142,21 @@ interface Track {
   duration_ms: number;
 }
 
-interface SpotifyArtist {
-  name: string;
-}
+interface SpotifyArtist { name: string; }
 
 interface SpotifyTrack {
   id: string;
   name: string;
   type: string;
   artists: SpotifyArtist[];
-  album: {
-    name: string;
-    images: { url: string }[];
-  };
+  album: { name: string; images: { url: string }[]; };
+  duration_ms: number;
+}
+
+interface SpotifyAlbumTrack {
+  id: string;
+  name: string;
+  artists: SpotifyArtist[];
   duration_ms: number;
 }
 
@@ -130,4 +168,14 @@ interface SpotifyPlaylistItem {
 interface SpotifyPlaylistResponse {
   items: SpotifyPlaylistItem[];
   next: string | null;
+}
+
+interface SpotifyAlbumTracksResponse {
+  items: SpotifyAlbumTrack[];
+  next: string | null;
+}
+
+interface SpotifyAlbum {
+  name: string;
+  images: { url: string }[];
 }
