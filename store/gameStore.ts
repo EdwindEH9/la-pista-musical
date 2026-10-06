@@ -41,7 +41,6 @@ interface GameStore {
   nextSong: () => void;
   reveal: () => void;
   placeBet: (playerId: string, pista: number) => void;
-  cancelBet: (playerId: string) => void;
   awardPoints: (playerId: string, pista: number) => void;
   noWinner: () => void;
   reset: () => void;
@@ -125,11 +124,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ bets: [...bets, { playerId, pista }] });
   },
 
-  cancelBet: (playerId) =>
-    set((state) => ({
-      bets: state.bets.filter((b) => b.playerId !== playerId),
-    })),
-
   awardPoints: (playerId, pista) => {
     const { bets } = get();
     const bet = bets.find((b) => b.playerId === playerId);
@@ -152,7 +146,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lastWinnerId: null,
         players: state.players.map((p) => {
           const bet = bets.find((b) => b.playerId === p.id);
-          return bet ? { ...p, score: Math.max(0, p.score - PENALTY) } : p;
+          return bet
+            ? { ...p, score: p.score - PENALTY }
+            : p;
         }),
       }));
     } else {
