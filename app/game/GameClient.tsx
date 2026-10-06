@@ -6,12 +6,13 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
 const DURATIONS = [0.5, 1, 2, 3, 5];
 const POINTS_BY_PISTA = [5, 4, 3, 2, 1];
+const PENALTY = 2;
 
 export default function GameClient() {
   const {
     tracks, setTracks, addPlayer, removePlayer, goToGame, startGame,
-    nextSong, reveal, awardPoints, noWinner,
-    phase, currentTrack, round, players, lastWinnerId, reset,
+    nextSong, reveal, placeBet, cancelBet, awardPoints, noWinner,
+    phase, currentTrack, round, players, lastWinnerId, bets, reset,
   } = useGameStore();
 
   const [url, setUrl] = useState("");
@@ -76,7 +77,7 @@ export default function GameClient() {
     const sorted = [...players].sort((a, b) => b.score - a.score);
     const medals = ["🥇", "🥈", "🥉"];
     return (
-      <main className="min-h-screen bg-black flex flex-col items-center justify-center gap-5 px-4 py-safe">
+      <main className="min-h-screen bg-black flex flex-col items-center justify-center gap-5 px-4 py-8">
         <div className="text-6xl">🏆</div>
         <h1 className="text-4xl font-black text-white">Fin del Juego</h1>
         <p className="text-zinc-400">{round} rondas jugadas</p>
@@ -103,9 +104,12 @@ export default function GameClient() {
 
   if (phase === "revealed" && currentTrack) {
     const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+    const bettors = bets.map((b) => players.find((p) => p.id === b.playerId)).filter(Boolean);
+
     return (
       <main className="min-h-screen bg-black flex flex-col items-center justify-start gap-4 px-4 pt-12 pb-8 overflow-y-auto">
         <p className="text-zinc-500 text-xs uppercase tracking-widest">Ronda {round}</p>
+
         <div className="flex items-center gap-4 w-full max-w-sm">
           {currentTrack.cover && (
             <img src={currentTrack.cover} alt="cover" className="w-24 h-24 rounded-xl shadow-xl flex-shrink-0" />
@@ -122,24 +126,61 @@ export default function GameClient() {
             {!lastWinnerId ? (
               <>
                 <p className="text-white font-bold text-center text-sm">
-                  ¿Quien adivino? ({POINTS_BY_PISTA[playCount - 1] ?? 1} pts)
+                  ¿Quien adivinó?
                 </p>
+                {bettors.length > 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
+                    <p className="text-yellow-400 text-xs text-center mb-2">Se jugaron 🎲</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {bets.map((b) => {
+                        const p = players.find((pl) => pl.id === b.playerId);
+                        return p ? (
+                          <span key={b.playerId} className="bg-yellow-500/20 text-yellow-300 text-xs px-2 py-1 rounded-full">
+                            {p.name} ({POINTS_BY_PISTA[b.pista] ?? 1}pts)
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
-                  {players.map((p) => (
-                    <button key={p.id} onClick={() => awardPoints(p.id, playCount - 1)}
-                      className="bg-zinc-800 active:bg-green-500 active:text-black text-white font-bold py-3 px-3 rounded-xl transition-colors text-sm min-h-[48px]">
-                      {p.name}
-                    </button>
-                  ))}
+                  {players.map((p) => {
+                    const bet = bets.find((b) => b.playerId === p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => awardPoints(p.id, playCount - 1)}
+                        className="bg-zinc-800 active:bg-green-500 active:text-black text-white font-bold py-3 px-3 rounded-xl transition-colors text-sm min-h-[48px] relative"
+                      >
+                        {p.name}
+                        {bet && (
+                          <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            🎲
+          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-                <button onClick={noWinner} className="w-full text-zinc-500 active:text-zinc-300 text-xs py-2 transition-colors">
-                  Nadie adivino
+                <button
+                  onClick={noWinner}
+                  className="w-full text-zinc-500 active:text-zinc-300 text-xs py-2 transition-colors"
+                >
+                  {bettors.length > 0
+                    ? `Nadie adivinó (-${PENALTY} pts a los que se jugaron)`
+                    : "Nadie adivinó"}
                 </button>
               </>
             ) : (
-              <p className="text-green-400 font-bold text-center py-2">
-                {players.find((p) => p.id === lastWinnerId)?.name} +{POINTS_BY_PISTA[playCount - 1] ?? 1} pts 🎉
-              </p>
+              <div className="text-center py-2 space-y-1">
+                <p className="text-green-400 font-bold text-lg">
+                  {players.find((p) => p.id === lastWinnerId)?.name} 🎉
+                </p>
+                <p className="text-green-300 text-sm">
+                  +{POINTS_BY_PISTA[bets.find(b => b.playerId === lastWinnerId)?.pista ?? playCount - 1] ?? 1} pts
+                  {bets.find(b => b.playerId === lastWinnerId) && " (apostó 🎲)"}
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -152,6 +193,9 @@ export default function GameClient() {
                 <div className="flex items-center gap-2">
                   <span className="text-base">{["🥇","🥈","🥉"][i] ?? "🎵"}</span>
                   <span className={`font-bold text-sm ${p.id === lastWinnerId ? "text-green-400" : "text-white"}`}>{p.name}</span>
+                  {bets.find(b => b.playerId === p.id) && (
+                    <span className="text-yellow-400 text-xs">🎲</span>
+                  )}
                 </div>
                 <span className="text-green-400 font-black">{p.score} pts</span>
               </div>
@@ -159,8 +203,10 @@ export default function GameClient() {
           </div>
         </div>
 
-        <button onClick={() => { stopAll(); nextSong(); }}
-          className="w-full max-w-sm bg-green-500 active:scale-95 text-black font-bold py-4 rounded-2xl transition-all text-lg">
+        <button
+          onClick={() => { stopAll(); nextSong(); }}
+          className="w-full max-w-sm bg-green-500 active:scale-95 text-black font-bold py-4 rounded-2xl transition-all text-lg"
+        >
           Siguiente →
         </button>
       </main>
@@ -185,7 +231,7 @@ export default function GameClient() {
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-5">
           <div className="w-44 h-44 rounded-3xl bg-zinc-900 border-2 border-zinc-800 flex items-center justify-center shadow-2xl">
             <span className="text-8xl">?</span>
           </div>
@@ -229,14 +275,43 @@ export default function GameClient() {
             {isExhausted && <span className="text-base font-bold">Agotado</span>}
           </button>
 
-          {!isExhausted && playState === "paused" && playCount < DURATIONS.length - 1 && (
-            <button
-              onClick={advance}
-              className="flex items-center gap-2 bg-zinc-800 active:bg-zinc-700 border border-zinc-600 text-white font-bold px-6 py-3 rounded-full transition-all"
-            >
-              <span>Escuchar mas</span>
-              <span className="text-green-400">{DURATIONS[playCount + 1]}s →</span>
-            </button>
+          <div className="flex gap-3 w-full max-w-sm justify-center">
+            {!isExhausted && playState !== "loading" && playCount < DURATIONS.length - 1 && (
+              <button
+                onClick={advance}
+                disabled={playState === "playing"}
+                className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 active:bg-zinc-700 disabled:opacity-50 border border-zinc-600 text-white font-bold px-4 py-3 rounded-2xl transition-all text-sm"
+              >
+                <span>Mas</span>
+                <span className="text-green-400">{DURATIONS[playCount + 1]}s →</span>
+              </button>
+            )}
+          </div>
+
+          {players.length > 0 && playState !== "loading" && !isExhausted && (
+            <div className="w-full max-w-sm bg-zinc-900 border border-zinc-700 rounded-2xl p-3">
+              <p className="text-zinc-400 text-xs text-center mb-2">
+                🎲 Me la juego — {POINTS_BY_PISTA[playCount] ?? 1} pts si acierto, -{PENALTY} si fallo
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {players.map((p) => {
+                  const hasBet = bets.some((b) => b.playerId === p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => hasBet ? cancelBet(p.id) : placeBet(p.id, playCount)}
+                      className={`py-2 px-3 rounded-xl font-bold text-sm min-h-[44px] transition-all active:scale-95 ${
+                        hasBet
+                          ? "bg-yellow-500 text-black"
+                          : "bg-zinc-800 text-white active:bg-zinc-700 border border-zinc-700"
+                      }`}
+                    >
+                      {hasBet ? `🎲 ${p.name}` : p.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {isExhausted && <p className="text-zinc-500 text-sm">Usaste todas las pistas</p>}

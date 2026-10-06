@@ -16,6 +16,11 @@ export interface Player {
   roundsWon: number;
 }
 
+export interface Bet {
+  playerId: string;
+  pista: number;
+}
+
 type GamePhase = "setup" | "addPlayers" | "playing" | "revealed" | "finished";
 
 interface GameStore {
@@ -26,6 +31,7 @@ interface GameStore {
   round: number;
   players: Player[];
   lastWinnerId: string | null;
+  bets: Bet[];
 
   setTracks: (tracks: Track[]) => void;
   addPlayer: (name: string) => void;
@@ -34,12 +40,15 @@ interface GameStore {
   startGame: () => void;
   nextSong: () => void;
   reveal: () => void;
+  placeBet: (playerId: string, pista: number) => void;
+  cancelBet: (playerId: string) => void;
   awardPoints: (playerId: string, pista: number) => void;
   noWinner: () => void;
   reset: () => void;
 }
 
 const POINTS_BY_PISTA = [5, 4, 3, 2, 1];
+const PENALTY = 2;
 
 export const useGameStore = create<GameStore>((set, get) => ({
   tracks: [],
@@ -49,6 +58,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   round: 0,
   players: [],
   lastWinnerId: null,
+  bets: [],
 
   setTracks: (tracks) => set({ tracks }),
 
@@ -79,11 +89,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       playedIds: new Set([track.id]),
       round: 1,
       lastWinnerId: null,
+      bets: [],
     });
   },
 
   nextSong: () => {
-    const { tracks, playedIds, round, players } = get();
+    const { tracks, playedIds, round } = get();
     const remaining = tracks.filter((t) => !playedIds.has(t.id));
 
     if (remaining.length === 0 || round >= 15) {
@@ -101,13 +112,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
       phase: "playing",
       round: round + 1,
       lastWinnerId: null,
+      bets: [],
     });
   },
 
   reveal: () => set({ phase: "revealed" }),
 
+  placeBet: (playerId, pista) => {
+    const { bets } = get();
+    const alreadyBet = bets.some((b) => b.playerId === playerId);
+    if (alreadyBet) return;
+    set({ bets: [...bets, { playerId, pista }] });
+  },
+
+  cancelBet: (playerId) =>
+    set((state) => ({
+      bets: state.bets.filter((b) => b.playerId !== playerId),
+    })),
+
   awardPoints: (playerId, pista) => {
-    const points = POINTS_BY_PISTA[pista] ?? 1;
+    const { bets } = get();
+    const bet = bets.find((b) => b.playerId === playerId);
+    const points = POINTS_BY_PISTA[bet ? bet.pista : pista] ?? 1;
+
     set((state) => ({
       lastWinnerId: playerId,
       players: state.players.map((p) =>
@@ -118,7 +145,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }));
   },
 
-  noWinner: () => set({ lastWinnerId: null }),
+  noWinner: () => {
+    const { bets } = get();
+    if (bets.length > 0) {
+      set((state) => ({
+        lastWinnerId: null,
+        players: state.players.map((p) => {
+          const bet = bets.find((b) => b.playerId === p.id);
+          return bet ? { ...p, score: Math.max(0, p.score - PENALTY) } : p;
+        }),
+      }));
+    } else {
+      set({ lastWinnerId: null });
+    }
+  },
 
   reset: () =>
     set({
@@ -129,6 +169,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       round: 0,
       players: [],
       lastWinnerId: null,
+      bets: [],
     }),
 }));
 
