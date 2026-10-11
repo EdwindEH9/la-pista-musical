@@ -1,14 +1,21 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForToken } from "@/lib/spotify";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000";
+function getAppUrl(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  const host = request.headers.get("host") ?? "localhost:3000";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  return `${protocol}://${host}`;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
+  const APP_URL = getAppUrl(request);
 
   if (error) {
     return NextResponse.redirect(`${APP_URL}/?error=access_denied`);
@@ -19,7 +26,6 @@ export async function GET(request: NextRequest) {
   }
 
   const savedState = request.cookies.get("spotify_auth_state")?.value;
-
   if (state !== savedState) {
     return NextResponse.redirect(`${APP_URL}/?error=state_mismatch`);
   }
@@ -32,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     response.cookies.set("spotify_access_token", tokenData.access_token, {
       httpOnly: true,
-      secure: false,
+      secure: true,
       maxAge: tokenData.expires_in,
       path: "/",
       sameSite: "lax",
@@ -40,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     response.cookies.set("spotify_refresh_token", tokenData.refresh_token, {
       httpOnly: true,
-      secure: false,
+      secure: true,
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
       sameSite: "lax",
@@ -48,14 +54,13 @@ export async function GET(request: NextRequest) {
 
     response.cookies.set("spotify_token_expires_at", String(expiresAt), {
       httpOnly: true,
-      secure: false,
+      secure: true,
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
       sameSite: "lax",
     });
 
     response.cookies.delete("spotify_auth_state");
-
     return response;
   } catch (err) {
     console.error("Error en callback:", err);
