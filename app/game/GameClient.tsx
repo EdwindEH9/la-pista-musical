@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useGameStore } from "@/store/gameStore";
@@ -11,7 +11,7 @@ const PENALTY = 2;
 export default function GameClient() {
   const {
     tracks, setTracks, addPlayer, removePlayer, goToGame, startGame,
-    nextSong, reveal, placeBet, cancelBet, awardPoints, noWinner,
+    nextSong, reveal, placeBet, awardPoints, noWinner,
     phase, currentTrack, round, players, lastWinnerId, bets, reset,
   } = useGameStore();
 
@@ -75,17 +75,17 @@ export default function GameClient() {
 
   if (phase === "finished") {
     const sorted = [...players].sort((a, b) => b.score - a.score);
-    const medals = ["??", "??", "??"];
+    const medals = ["🥇", "🥈", "🥉"];
     return (
       <main className="min-h-screen bg-black flex flex-col items-center justify-center gap-5 px-4 py-8">
-        <div className="text-6xl">??</div>
+        <div className="text-6xl">🏆</div>
         <h1 className="text-4xl font-black text-white">Fin del Juego</h1>
         <p className="text-zinc-400">{round} rondas jugadas</p>
         <div className="w-full max-w-sm space-y-3 mt-2">
           {sorted.map((p, i) => (
             <div key={p.id} className={`flex items-center justify-between px-5 py-4 rounded-2xl ${i === 0 ? "bg-yellow-500/20 border-2 border-yellow-500" : "bg-zinc-900 border border-zinc-700"}`}>
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{medals[i] ?? "??"}</span>
+                <span className="text-3xl">{medals[i] ?? "🥉"}</span>
                 <div>
                   <p className={`font-black text-lg ${i === 0 ? "text-yellow-400" : "text-white"}`}>{p.name}</p>
                   <p className="text-zinc-500 text-xs">{p.roundsWon} rondas ganadas</p>
@@ -104,12 +104,9 @@ export default function GameClient() {
 
   if (phase === "revealed" && currentTrack) {
     const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-    const bettors = bets.map((b) => players.find((p) => p.id === b.playerId)).filter(Boolean);
-
     return (
       <main className="min-h-screen bg-black flex flex-col items-center justify-start gap-4 px-4 pt-12 pb-8 overflow-y-auto">
         <p className="text-zinc-500 text-xs uppercase tracking-widest">Ronda {round}</p>
-
         <div className="flex items-center gap-4 w-full max-w-sm">
           {currentTrack.cover && (
             <img src={currentTrack.cover} alt="cover" className="w-24 h-24 rounded-xl shadow-xl flex-shrink-0" />
@@ -126,11 +123,11 @@ export default function GameClient() {
             {!lastWinnerId ? (
               <>
                 <p className="text-white font-bold text-center text-sm">
-                  �Quien adivin�?
+                  Quien adivino?
                 </p>
-                {bettors.length > 0 && (
+                {bets.length > 0 && (
                   <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
-                    <p className="text-yellow-400 text-xs text-center mb-2">Se jugaron ??</p>
+                    <p className="text-yellow-400 text-xs text-center mb-2">Se jugaron</p>
                     <div className="flex flex-wrap gap-2 justify-center">
                       {bets.map((b) => {
                         const p = players.find((pl) => pl.id === b.playerId);
@@ -155,8 +152,8 @@ export default function GameClient() {
                         {p.name}
                         {bet && (
                           <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                            ??
-          </span>
+                            !
+                          </span>
                         )}
                       </button>
                     );
@@ -166,19 +163,17 @@ export default function GameClient() {
                   onClick={noWinner}
                   className="w-full text-zinc-500 active:text-zinc-300 text-xs py-2 transition-colors"
                 >
-                  {bettors.length > 0
-                    ? `Nadie adivin� (-${PENALTY} pts a los que se jugaron)`
-                    : "Nadie adivin�"}
+                  {bets.length > 0 ? `Nadie adivino (-${PENALTY} pts a los que apostaron)` : "Nadie adivino"}
                 </button>
               </>
             ) : (
               <div className="text-center py-2 space-y-1">
                 <p className="text-green-400 font-bold text-lg">
-                  {players.find((p) => p.id === lastWinnerId)?.name} ??
+                  {players.find((p) => p.id === lastWinnerId)?.name}
                 </p>
                 <p className="text-green-300 text-sm">
                   +{POINTS_BY_PISTA[bets.find(b => b.playerId === lastWinnerId)?.pista ?? playCount - 1] ?? 1} pts
-                  {bets.find(b => b.playerId === lastWinnerId) && " (apost� ??)"}
+                  {bets.find(b => b.playerId === lastWinnerId) && " (aposto)"}
                 </p>
               </div>
             )}
@@ -191,13 +186,13 @@ export default function GameClient() {
             {sortedPlayers.map((p, i) => (
               <div key={p.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">{["??","??","??"][i] ?? "??"}</span>
+                  <span className="text-base">{["🥇","🥈","🥉"][i] ?? "🎵"}</span>
                   <span className={`font-bold text-sm ${p.id === lastWinnerId ? "text-green-400" : "text-white"}`}>{p.name}</span>
                   {bets.find(b => b.playerId === p.id) && (
-                    <span className="text-yellow-400 text-xs">??</span>
+                    <span className="text-yellow-400 text-xs">aposto</span>
                   )}
                 </div>
-                <span className="text-green-400 font-black">{p.score} pts</span>
+                <span className={`font-black ${p.score < 0 ? "text-red-400" : "text-green-400"}`}>{p.score} pts</span>
               </div>
             ))}
           </div>
@@ -207,7 +202,7 @@ export default function GameClient() {
           onClick={() => { stopAll(); nextSong(); }}
           className="w-full max-w-sm bg-green-500 active:scale-95 text-black font-bold py-4 rounded-2xl transition-all text-lg"
         >
-          Siguiente ?
+          Siguiente
         </button>
       </main>
     );
@@ -223,7 +218,7 @@ export default function GameClient() {
             <div className="flex gap-4">
               {sortedPlayers.slice(0, 3).map((p) => (
                 <div key={p.id} className="text-center">
-                  <p className="text-green-400 font-black text-sm">{p.score}</p>
+                  <p className={`font-black text-sm ${p.score < 0 ? "text-red-400" : "text-green-400"}`}>{p.score}</p>
                   <p className="text-zinc-600 text-xs">{p.name.split(" ")[0]}</p>
                 </div>
               ))}
@@ -261,7 +256,7 @@ export default function GameClient() {
               }`}
           >
             {playState === "loading" && <>
-              <span className="text-5xl animate-pulse">?</span>
+              <span className="text-5xl animate-pulse">♪</span>
               <span className="text-base font-bold">Buscando...</span>
             </>}
             {playState === "playing" && <>
@@ -269,7 +264,7 @@ export default function GameClient() {
               <span className="text-base font-bold">{currentDuration}s</span>
             </>}
             {(playState === "paused" || playState === "idle") && !isExhausted && <>
-              <span className="text-6xl">?</span>
+              <span className="text-6xl">▶</span>
               <span className="text-base font-bold">{currentDuration}s</span>
             </>}
             {isExhausted && <span className="text-base font-bold">Agotado</span>}
@@ -283,15 +278,15 @@ export default function GameClient() {
                 className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 active:bg-zinc-700 disabled:opacity-50 border border-zinc-600 text-white font-bold px-4 py-3 rounded-2xl transition-all text-sm"
               >
                 <span>Mas</span>
-                <span className="text-green-400">{DURATIONS[playCount + 1]}s ?</span>
+                <span className="text-green-400">{DURATIONS[playCount + 1]}s</span>
               </button>
             )}
           </div>
 
-          {players.length > 0 && playState !== "loading" && !isExhausted && (
+          {players.length > 0 && playState !== "loading" && (
             <div className="w-full max-w-sm bg-zinc-900 border border-zinc-700 rounded-2xl p-3">
               <p className="text-zinc-400 text-xs text-center mb-2">
-                ?? Me la juego � {POINTS_BY_PISTA[playCount] ?? 1} pts si acierto, -{PENALTY} si fallo
+                Me la juego — {POINTS_BY_PISTA[playCount] ?? 1} pts si acierto, -{PENALTY} si fallo
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {players.map((p) => {
@@ -300,13 +295,14 @@ export default function GameClient() {
                     <button
                       key={p.id}
                       onClick={() => placeBet(p.id, playCount)}
-                      className={`py-2 px-3 rounded-xl font-bold text-sm min-h-[44px] transition-all active:scale-95 ${
+                      disabled={hasBet}
+                      className={`py-2 px-3 rounded-xl font-bold text-sm min-h-[44px] transition-all ${
                         hasBet
-                          ? "bg-yellow-500 text-black"
-                          : "bg-zinc-800 text-white active:bg-zinc-700 border border-zinc-700"
+                          ? "bg-yellow-500 text-black opacity-90 cursor-not-allowed"
+                          : "bg-zinc-800 text-white active:bg-zinc-700 active:scale-95 border border-zinc-700"
                       }`}
                     >
-                      {hasBet ? `?? ${p.name}` : p.name}
+                      {hasBet ? "Apostado" : p.name}
                     </button>
                   );
                 })}
@@ -321,7 +317,7 @@ export default function GameClient() {
           onClick={reveal}
           className="w-full max-w-sm bg-zinc-800 active:bg-zinc-700 active:scale-95 text-white font-bold py-4 rounded-2xl transition-all border border-zinc-600 text-lg"
         >
-          Revelar Cancion ??
+          Revelar Cancion
         </button>
       </main>
     );
@@ -331,7 +327,7 @@ export default function GameClient() {
     return (
       <main className="min-h-screen bg-black flex flex-col items-center justify-center gap-5 px-4 py-8">
         <div className="text-center space-y-1">
-          <div className="text-5xl">??</div>
+          <div className="text-5xl">👥</div>
           <h1 className="text-3xl font-black text-white">Jugadores</h1>
           <p className="text-zinc-400 text-sm">Hasta 8 jugadores</p>
         </div>
@@ -349,10 +345,10 @@ export default function GameClient() {
             {players.map((p, i) => (
               <div key={p.id} className="flex items-center justify-between bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span>{["??","??","??"][i] ?? "??"}</span>
+                  <span>{["🥇","🥈","🥉"][i] ?? "🎵"}</span>
                   <span className="text-white font-bold">{p.name}</span>
                 </div>
-                <button onClick={() => removePlayer(p.id)} className="text-zinc-500 active:text-red-400 transition-colors text-xl w-10 h-10 flex items-center justify-center">?</button>
+                <button onClick={() => removePlayer(p.id)} className="text-zinc-500 active:text-red-400 transition-colors text-xl w-10 h-10 flex items-center justify-center">x</button>
               </div>
             ))}
           </div>
@@ -364,7 +360,7 @@ export default function GameClient() {
           </button>
           {players.length === 0 && (
             <button onClick={startGame} className="w-full text-zinc-500 active:text-zinc-300 text-sm py-3 transition-colors">
-              Jugar sin puntaje ?
+              Jugar sin puntaje
             </button>
           )}
           <button onClick={() => useGameStore.getState().reset()}
@@ -379,7 +375,7 @@ export default function GameClient() {
   return (
     <main className="min-h-screen bg-black flex flex-col items-center justify-center gap-6 px-4 py-8">
       <div className="text-center space-y-2">
-        <div className="text-6xl">??</div>
+        <div className="text-6xl">🎵</div>
         <h1 className="text-4xl font-black text-white">La Pista Musical</h1>
         <p className="text-zinc-400">Pega el enlace de tu playlist o album</p>
       </div>
@@ -397,7 +393,7 @@ export default function GameClient() {
       )}
       {info && (
         <div className="w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-2xl p-5 space-y-4">
-          <h2 className="text-white font-bold text-lg">Cargado ?</h2>
+          <h2 className="text-white font-bold text-lg">Cargado</h2>
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="bg-zinc-800 rounded-xl p-4">
               <div className="text-3xl font-black text-white">{info.total}</div>
@@ -410,7 +406,7 @@ export default function GameClient() {
           </div>
           <button onClick={goToGame}
             className="w-full bg-green-500 active:scale-95 text-black font-bold py-4 rounded-xl transition-all text-lg">
-            Continuar ?
+            Continuar
           </button>
         </div>
       )}
